@@ -28,6 +28,7 @@ public class Server {
 	
 	private static int numOfChunks = 5;
 	public static String filename = "serverFile.txt";
+	public static String serverDir = "ServerDB";
 	public static String data = "I returned from the City about three o'clock on that \nMay afternoon pretty well disgusted with life. \nI had been three months in the Old Country, and was \nfed up with it. \nIf anyone had told me a year ago that I would have \nbeen feeling like that I should have laughed at him; \nbut there was the fact. \nThe weather made me liverish, \nthe talk of the ordinary Englishman made me sick, \nI couldn't get enough exercise, and the amusements \nof London seemed as flat as soda-water that \nhas been standing in the sun. \n'Richard Hannay,' I kept telling myself, 'you \nhave got into the wrong ditch, my friend, and \nyou had better climb out.";
 	public static final int chunkSize = 100 * 1024; //Each chunk having 100KB
 	private static Hashtable<String, Long> chunks = new Hashtable<>();
@@ -74,6 +75,15 @@ public class Server {
 	    			if(request.startsWith("Hello")){
 	    				System.out.println("Request Message is: "+request);
 	    				out.writeInt(chunks.size());
+	    			}
+	    			else if(request.startsWith("Count of Chunks")){
+	    				System.out.println("Request Message is: "+request);
+	    				out.writeInt(chunks.size());
+	    			}
+	    			else if(request.startsWith("Get Next Chunk Name")){
+	    				System.out.println("Request Message is: "+request);
+	    				out.writeUTF("serverFile.txt");
+	    				//out.writeInt(chunks.size());
 	    			}
 	    			else if(request.startsWith("Get File")){
 	    				System.out.println("Request Message is: "+request);
@@ -135,7 +145,7 @@ public class Server {
 	}
 	
 	private static File createFile(int numOfChunks) throws IOException{
-		File dir = new File("ServerDB");
+		File dir = new File(serverDir);
 		dir.mkdir();
 		File f = new File(dir, filename);
 		f.createNewFile();
