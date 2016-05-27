@@ -14,6 +14,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.Hashtable;
+import java.util.logging.Handler;
 //import java.util.logging.Handler;
 import java.util.logging.Logger;
 
@@ -32,6 +33,7 @@ public class Server {
 	public static String data = "I returned from the City about three o'clock on that \nMay afternoon pretty well disgusted with life. \nI had been three months in the Old Country, and was \nfed up with it. \nIf anyone had told me a year ago that I would have \nbeen feeling like that I should have laughed at him; \nbut there was the fact. \nThe weather made me liverish, \nthe talk of the ordinary Englishman made me sick, \nI couldn't get enough exercise, and the amusements \nof London seemed as flat as soda-water that \nhas been standing in the sun. \n'Richard Hannay,' I kept telling myself, 'you \nhave got into the wrong ditch, my friend, and \nyou had better climb out.";
 	public static final int chunkSize = 100 * 1024; //Each chunk having 100KB
 	private static Hashtable<String, Long> chunks = new Hashtable<>();
+	private static int serverPort = 8080;
 	
 	public static void main(String args[]){
 		System.out.println("Hello Server. Please Upload ur file into Peer System");
@@ -40,99 +42,24 @@ public class Server {
 		
 		createAndBreakFile(numOfChunks);
 		
-		int sPort = 8080; 
+		//int serverPort = 8080;
+		
+		ServeFile sf = new ServeFile();
+		Thread t = new Thread(sf);
+		t.start();
+		
 		try {
-			ServerSocket sSocket = new ServerSocket(sPort);
-			
-			//If you set time-out, this application will end with SocketTimeoutException.
-			//Else Server will continuously run until manually exits without any abrupt messages.
-			//sSocket.setSoTimeout(10000);
-			System.out.println("Started a server socket at port "+ sSocket.getLocalPort());
-	        
-			Socket server;
-			DataInputStream in;
-			DataOutputStream out;
-	        //int peerId = 1;
-	        try{
-	        	server = sSocket.accept();
-	        	while(true){
-	        		System.out.println("Listening to client");
-	    			System.out.println("Connected to "+ server.getRemoteSocketAddress());
-	    			
-	    			in = new DataInputStream(server.getInputStream());
-	    			out = new DataOutputStream(server.getOutputStream());
-	    				    	
-	    			String request;
-	    			while(true){
-	    				try {
-	    					request = in.readUTF();
-	    					break;
-	    				}catch(Exception e){
-	    					//Exception ignored
-	    				}
-	    			}
-	    			
-	    			if(request.startsWith("Hello")){
-	    				System.out.println("Request Message is: "+request);
-	    				out.writeInt(chunks.size());
-	    			}
-	    			else if(request.startsWith("Count of Chunks")){
-	    				System.out.println("Request Message is: "+request);
-	    				out.writeInt(chunks.size());
-	    			}
-	    			else if(request.startsWith("Get Next Chunk Name")){
-	    				System.out.println("Request Message is: "+request);
-	    				out.writeUTF("serverFile.txt");
-	    				//out.writeInt(chunks.size());
-	    			}
-	    			else if(request.startsWith("Get File")){
-	    				System.out.println("Request Message is: "+request);
-	    				String filename = request.split("#")[1].trim();
-	    				log.info("Sending file with name "+ filename);
-	    				File f = new File("ServerDB",filename);
-	    				
-	    				int count;
-	    				byte[] buffer = new byte[chunkSize];
-	    				OutputStream o = server.getOutputStream();
-	    				BufferedInputStream i = new BufferedInputStream(new FileInputStream(f));
-	    				
-	    				while ((count = i.read(buffer)) > 0) {
-	    				     o.write(buffer, 0, count);
-	    				     o.flush();
-	    				}
-	    				log.info("Sent file to peer");
-	    				//server.close();
-	    			}
-	    			else if(request.startsWith("close")){
-	    				log.info("Peer with id is requested to close connection");
-	    				System.out.println("Closing connection");
-	    				server.close();
-	    				break;
-	    			}
-	    			//server.close();
-		        	//out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress() + "\nGoodbye!");
-	        	}
-	        	
-	        }
-//	        catch(EOFException eof){
-//	        	log.info("Peer with id is disconnected ");
-//	        }
-			finally {
-				sSocket.close();
-				System.out.println("No request from client");
-				System.out.println("Finally Server stopped listening to peers");
-			}
-	        
-//			System.out.println("Started a server socket at port "+ sSocket.getLocalPort());
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			System.out.println("Joining to main thread");
+			t.join();
+		} catch (InterruptedException e) {
+			System.out.println("Main Thread has been interrupted");
 			e.printStackTrace();
 		}
-
+		
 		System.out.println("Distributed file can now be shared into peer to peer system");
 	}
 	
+
 	private static void createAndBreakFile(int numOfChunks){
 		try {
 			File newFile = createFile(numOfChunks);
@@ -201,4 +128,95 @@ public class Server {
 		
 	}
  
+	private static class ServeFile implements Runnable{
+
+		public void run() {
+			try {
+				ServerSocket sSocket = new ServerSocket(serverPort);
+				
+				//If you set time-out, this application will end with SocketTimeoutException.
+				//Else Server will continuously run until manually exits without any abrupt messages.
+				//sSocket.setSoTimeout(10000);
+				System.out.println("Started a server socket at port "+ sSocket.getLocalPort());
+		        
+				Socket server;
+				DataInputStream in;
+				DataOutputStream out;
+		        //int peerId = 1;
+		        try{
+		        	server = sSocket.accept();
+		        	while(true){
+		        		System.out.println("Listening to client");
+		    			System.out.println("Connected to "+ server.getRemoteSocketAddress());
+		    			
+		    			in = new DataInputStream(server.getInputStream());
+		    			out = new DataOutputStream(server.getOutputStream());
+		    				    	
+		    			String request;
+		    			while(true){
+		    				try {
+		    					request = in.readUTF();
+		    					break;
+		    				}catch(Exception e){
+		    					//Exception ignored
+		    				}
+		    			}
+		    			
+		    			if(request.startsWith("Hello")){
+		    				System.out.println("Request Message is: "+request);
+		    				out.writeInt(chunks.size());
+		    			}
+		    			else if(request.startsWith("Count of Chunks")){
+		    				System.out.println("Request Message is: "+request);
+		    				out.writeInt(chunks.size());
+		    			}
+		    			else if(request.startsWith("Get Next Chunk Name")){
+		    				System.out.println("Request Message is: "+request);
+		    				out.writeUTF("serverFile.txt");
+		    				//out.writeInt(chunks.size());
+		    			}
+		    			else if(request.startsWith("Get File")){
+		    				System.out.println("Request Message is: "+request);
+		    				String filename = request.split("#")[1].trim();
+		    				log.info("Sending file with name "+ filename);
+		    				File f = new File("ServerDB",filename);
+		    				
+		    				int count;
+		    				byte[] buffer = new byte[chunkSize];
+		    				OutputStream o = server.getOutputStream();
+		    				BufferedInputStream i = new BufferedInputStream(new FileInputStream(f));
+		    				
+		    				while ((count = i.read(buffer)) > 0) {
+		    				     o.write(buffer, 0, count);
+		    				     o.flush();
+		    				}
+		    				log.info("Sent file to peer");
+		    				//server.close();
+		    			}
+		    			else if(request.startsWith("close")){
+		    				log.info("Peer with id is requested to close connection");
+		    				System.out.println("Closing connection");
+		    				server.close();
+		    				break;
+		    			}
+		    			
+		        	}
+		        	
+		        }
+		        
+				finally {
+					sSocket.close();
+					System.out.println("No request from client");
+					System.out.println("Finally Server stopped listening to peers");
+				}
+		        
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		
+	}
+	
 }
