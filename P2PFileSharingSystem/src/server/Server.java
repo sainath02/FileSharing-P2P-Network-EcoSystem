@@ -15,7 +15,6 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.util.Hashtable;
 import java.util.logging.Handler;
-//import java.util.logging.Handler;
 import java.util.logging.Logger;
 
 
@@ -35,7 +34,7 @@ public class Server {
 	private static Hashtable<String, Long> chunks = new Hashtable<>();
 	private static int serverPort = 8080;
 	
-	public static void main(String args[]){
+	public static void main(String args[]) throws Exception{
 		System.out.println("Hello Server. Please Upload ur file into Peer System");
 		
 		numOfChunks = Integer.parseInt(args[0]);
@@ -43,20 +42,35 @@ public class Server {
 		createAndBreakFile(numOfChunks);
 		
 		//int serverPort = 8080;
+		ServerSocket sSocket = new ServerSocket(serverPort);
+		System.out.println("Started server socket");
 		
-		ServeFile sf = new ServeFile();
-		Thread t = new Thread(sf);
-		t.start();
+		int clientNum = 1;
+    	try {
+        	while(true) {
+            		new ServeFile(sSocket.accept(),clientNum).start();
+            		System.out.println("Client "  + clientNum + " is connected!");
+			clientNum++;
+        			}
+    	} finally {
+        		sSocket.close();
+        		System.out.println("Distributed file is shared into peer to peer system");
+    	} 
 		
-		try {
-			System.out.println("Joining to main thread");
-			t.join();
-		} catch (InterruptedException e) {
-			System.out.println("Main Thread has been interrupted");
-			e.printStackTrace();
-		}
 		
-		System.out.println("Distributed file can now be shared into peer to peer system");
+		//ServeFile sf = new ServeFile();
+		//Thread t = new Thread(sf);
+		//t.start();
+		
+//		try {
+//			System.out.println("Joining to main thread");
+//			t.join();
+//		} catch (InterruptedException e) {
+//			System.out.println("Main Thread has been interrupted");
+//			e.printStackTrace();
+//		}
+//		
+//		System.out.println("Distributed file can now be shared into peer to peer system");
 	}
 	
 
@@ -77,7 +91,7 @@ public class Server {
 		File f = new File(dir, filename);
 		f.createNewFile();
 		
-		//Write if condition here
+		//Write if condition here	
 		if(!f.exists() || f.length() == 0){
 			FileOutputStream fos = new FileOutputStream(f);
 			byte[] dataBytes = (data + " \n" + String.format("%08d", 0)).getBytes();
@@ -128,23 +142,22 @@ public class Server {
 		
 	}
  
-	private static class ServeFile implements Runnable{
+	private static class ServeFile extends Thread{
+		
+		private Socket server;
+		private int peerId;
+		public ServeFile(Socket connection, int no){
+			System.out.println("Connecting to peer");
+			this.server = connection;
+			this.peerId = no;
+		}
 
 		public void run() {
-			try {
-				ServerSocket sSocket = new ServerSocket(serverPort);
-				
-				//If you set time-out, this application will end with SocketTimeoutException.
-				//Else Server will continuously run until manually exits without any abrupt messages.
-				//sSocket.setSoTimeout(10000);
-				System.out.println("Started a server socket at port "+ sSocket.getLocalPort());
-		        
-				Socket server;
+				//Socket server;
 				DataInputStream in;
 				DataOutputStream out;
 		        //int peerId = 1;
 		        try{
-		        	server = sSocket.accept();
 		        	while(true){
 		        		System.out.println("Listening to client");
 		    			System.out.println("Connected to "+ server.getRemoteSocketAddress());
@@ -170,11 +183,11 @@ public class Server {
 		    				System.out.println("Request Message is: "+request);
 		    				out.writeInt(chunks.size());
 		    			}
-		    			else if(request.startsWith("Get Next Chunk Name")){
-		    				System.out.println("Request Message is: "+request);
-		    				out.writeUTF("serverFile.txt");
-		    				//out.writeInt(chunks.size());
-		    			}
+//		    			else if(request.startsWith("Get Next Chunk Name")){
+//		    				System.out.println("Request Message is: "+request);
+//		    				out.writeUTF("serverFile.txt");
+//		    				//out.writeInt(chunks.size());
+//		    			}
 		    			else if(request.startsWith("Get File")){
 		    				System.out.println("Request Message is: "+request);
 		    				String filename = request.split("#")[1].trim();
@@ -202,18 +215,16 @@ public class Server {
 		    			
 		        	}
 		        	
-		        }
-		        
-				finally {
-					sSocket.close();
-					System.out.println("No request from client");
-					System.out.println("Finally Server stopped listening to peers");
+		        } catch (Exception e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
 				}
 		        
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+				finally {
+					//sSocket.close();
+					System.out.println("No request from client");
+					System.out.println("Finally Server stopped listening to peers");
+				}		    
 			
 		}
 		
