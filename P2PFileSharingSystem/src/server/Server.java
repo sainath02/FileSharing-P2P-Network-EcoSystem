@@ -1,4 +1,4 @@
-package server;
+//package server;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -208,6 +208,14 @@ public class Server {
 //		    				out.writeUTF("serverFile.txt");
 //		    				//out.writeInt(chunks.size());
 //		    			}
+						else if(request.startsWith("Get details of chunk")){
+		    				System.out.println("Request Message is: "+request);
+		    				String filename = request.split("#")[1].trim();
+		    				File f = new File(serverDir, filename);
+		    				String response = peerId + "#"+ filename + "#" + f.length();
+		    				out.writeUTF(response);
+		    				out.flush();
+		    			}
 		    			else if(request.startsWith("Get File")){
 		    				System.out.println("Request Message is: "+request);
 		    				String filename = request.split("#")[1].trim();

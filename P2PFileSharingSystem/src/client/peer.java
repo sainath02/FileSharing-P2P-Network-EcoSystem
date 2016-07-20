@@ -1,4 +1,4 @@
-package client;
+//package client;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -105,6 +105,12 @@ public class Peer {
 			int nextChunk = peerId;
 			while (nextChunk < chunkscount) {
 				String chunkName = serverFile + "." + nextChunk;
+				
+				out.writeUTF("Get details of chunk" + "#" + chunkName);
+				out.flush();
+				String chunkInformation = (String) in.readUTF();
+				String[] chunkInfo = chunkInformation.split("#");
+				int size = Integer.parseInt(chunkInfo[2]);
 				out.writeUTF("Get File" + "#" + chunkName);
 				out.flush();
 
@@ -116,7 +122,7 @@ public class Peer {
 
 				int count;
 				int totalBytes = 0;
-				int size = chunkSize;
+				if(size < 0) size = chunkSize;
 				while ((count = in.read(bytes)) >= 0) {
 					totalBytes += count;
 					System.out.println("Writing " + count + " total : " + totalBytes + " size : " + size);
@@ -259,6 +265,13 @@ public class Peer {
 					for (String next : diffList.keySet()) {
 
 						System.out.println("Requesting file from Neighbour: " + next);
+						
+						out.writeUTF("Get details of chunk" + "#" + next);
+						out.flush();
+						String chunkInformation = (String) in.readUTF();
+						String[] chunkInfo = chunkInformation.split("#");
+						int size = Integer.parseInt(chunkInfo[2]);
+						
 						out.writeUTF("Get File" + "#" + next);
 						out.flush();
 
@@ -272,7 +285,7 @@ public class Peer {
 
 						int count;
 						int totalBytes = 0;
-						int size = chunkSize;
+						
 						// System.out.println("Recidue "+in.readUTF());
 						while ((count = in.read(bytes)) >= 0) {
 							totalBytes += count;
@@ -377,12 +390,19 @@ public class Peer {
 //								tempMap.put("serverFile.txt.8", 100L);
 //								//tempMap.put("serverFile.txt.9", 100L);
 //								obj.writeObject(tempMap);
-							} else if (request.startsWith("Get File")) {
+							} else if(request.startsWith("Get details of chunk")){
+			    				System.out.println("Request Message is: "+request);
+			    				String filename = request.split("#")[1].trim();
+			    				File f = new File(peerDir, filename);
+			    				String response = peerId + "#"+ filename + "#" + f.length();
+			    				out.writeUTF(response);
+			    				out.flush();
+			    			} else if (request.startsWith("Get File")) {
 								System.out.println("Request Message is: " + request);
 								String filename = request.split("#")[1].trim();
 								log.info("Sending file with name " + filename);
 								//Change below dir name to peerDir
-								File f = new File("ServerDB", filename);
+								File f = new File(peerDir, filename);
 
 								int count;
 								byte[] buffer = new byte[chunkSize];
@@ -442,6 +462,7 @@ public class Peer {
 		
 		HashMap<String, Long> chunksInfo = new HashMap<>();
 		for(final File chunkEntry : dir.listFiles()){
+			if(serverFile.equals(chunkEntry.getName())) continue;
 			chunksInfo.put(chunkEntry.getName(), 100L);
 		}
 
