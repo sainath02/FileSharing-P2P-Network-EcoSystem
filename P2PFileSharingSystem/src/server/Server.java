@@ -1,4 +1,4 @@
-//package server;
+package server;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -12,10 +12,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.util.Hashtable;
+import java.util.Properties;
 import java.util.logging.Handler;
 import java.util.logging.Logger;
+
+import jdk.nashorn.internal.runtime.regexp.joni.Config;
 
 public class Server {
 
@@ -26,9 +30,9 @@ public class Server {
 	}
 	static final Logger log = Logger.getLogger(Server.class.getName());
 
-	private static int numOfChunks = 10;
+	private static int numOfChunks;
 	private static int numOfPeers = 5;
-	public static String filename = "serverFile.txt";
+	public static String filename;
 	public static String serverDir = "ServerDB";
 	public static String data = "I returned from the City about three o'clock on that \nMay afternoon pretty well disgusted with life. \nI had been three months in the Old Country, and was \nfed up with it. \nIf anyone had told me a year ago that I would have \nbeen feeling like that I should have laughed at him; \nbut there was the fact. \nThe weather made me liverish, \nthe talk of the ordinary Englishman made me sick, \nI couldn't get enough exercise, and the amusements \nof London seemed as flat as soda-water that \nhas been standing in the sun. \n'Richard Hannay,' I kept telling myself, 'you \nhave got into the wrong ditch, my friend, and \nyou had better climb out.";
 	public static final int chunkSize = 100 * 1024; // Each chunk having 100KB
@@ -36,16 +40,46 @@ public class Server {
 	private static int serverPort = 8080;
 
 	public static void main(String args[]) throws Exception {
-		System.out.println("Hello Server. Please Upload ur file into Peer System");
+		
+		System.out.println("Hello USER. Setting configurations and uploading your file into peer system");
+		Properties properties = new Properties();
+		System.out.println();
+		
+		//FileInputStream fs = new FileInputStream("C:/UF/Summer/Computer Networks/Project/FileSharing-P2P-Network-EcoSystem/P2PFileSharingSystem/src/server/config.properties");
+		FileInputStream fs = new FileInputStream("src/server/config.properties");
 
-		numOfChunks = Integer.parseInt(args[0]);
+		properties.load(fs);
+		
+		if(properties.isEmpty()) log.info("No server properties are found. System runs with default setting with program generated test file");
+		
+		String serverProperties = properties.getProperty("0");
+		String[] propArray = serverProperties.split(",");
 
-		createAndBreakFile(numOfChunks);
+		switch(propArray.length){
+		case 3: numOfPeers = Integer.parseInt(propArray[2]);
+		case 2: filename = propArray[1];
+		case 1: serverPort = Integer.parseInt(propArray[0]);
+				break;
+		default:filename = "serverFile.txt";
+				numOfChunks = 10;
+		}
+		
+		log.info("==========SERVER PROPERTIES===========");
+		log.info("filename: "+filename +"; server port: "+serverPort+"; Number of clients: "+numOfPeers);
+		
+		
+		if(propArray.length < 2) createAndBreakFile(numOfChunks);
+		else{
+			File f = new File(filename);
+			if(!f.exists()){
+				System.err.println("The input file doesn't exits. Please input correct file location and rerun the program");
+			} 
+			breakFileIntoChunks(f);
+		}
 
-		// int serverPort = 8080;
 		ServerSocket sSocket = new ServerSocket(serverPort);
-		System.out.println("Started server socket");
-
+		log.info("Started server socket");
+		
 		int clientNum = 0;
 		try {
 			while (true) {
@@ -57,21 +91,6 @@ public class Server {
 			sSocket.close();
 			System.out.println("Distributed file is shared into peer to peer system");
 		}
-
-		// ServeFile sf = new ServeFile();
-		// Thread t = new Thread(sf);
-		// t.start();
-
-		// try {
-		// System.out.println("Joining to main thread");
-		// t.join();
-		// } catch (InterruptedException e) {
-		// System.out.println("Main Thread has been interrupted");
-		// e.printStackTrace();
-		// }
-		//
-		// System.out.println("Distributed file can now be shared into peer to
-		// peer system");
 	}
 
 	private static void createAndBreakFile(int numOfChunks) {
@@ -80,14 +99,14 @@ public class Server {
 			System.out.println("Parent: " + newFile.getParent());
 			breakFile(newFile, numOfChunks);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
 	private static File createFile(int numOfChunks) throws IOException {
 		File dir = new File(serverDir);
-		dir.mkdir();
+		if(!dir.exists()) 
+			dir.mkdir();
 		File f = new File(dir, filename);
 		f.createNewFile();
 
@@ -140,6 +159,45 @@ public class Server {
 			e.printStackTrace();
 		}
 
+	}
+	
+	public static void breakFileIntoChunks(File sourceFile) throws IOException{
+		File dir = new File(serverDir);
+		if(!dir.exists()) 
+			dir.mkdir();
+		File destiFile = new File(dir, sourceFile.getName());
+		Files.copy(sourceFile.toPath(), destiFile.toPath());
+//		FileChannel inputChannel = null;
+//		FileChannel outputChannel = null;
+//		try{
+//			inputChannel = new FileInputStream(sourceFile).getChannel();
+//			outputChannel = new FileOutputStream(destiFile).getChannel();
+//			outputChannel.transferFrom(inputChannel, 0, inputChannel.size());
+//		}finally{
+//			inputChannel.close();
+//			outputChannel.close();
+//		}
+		
+		int chunkNum = 0;
+		byte[] chunkBytes = new byte[chunkSize];
+		try {
+			BufferedInputStream bis = new BufferedInputStream(new FileInputStream(destiFile));
+			int temp = 0;
+			while ((temp = bis.read(chunkBytes)) > 0) {
+				File chunk = new File(destiFile.getParent(), destiFile.getName() + "." + (chunkNum++));
+				FileOutputStream fos = new FileOutputStream(chunk);
+				fos.write(chunkBytes, 0, temp);
+				chunks.put(chunk.getName(), chunk.length());
+
+				log.info("Created chunk file: " + chunk.getName() + " of size: " + chunk.length());
+				fos.close();
+			}
+			numOfChunks = chunkNum;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 	private static class ServeFile extends Thread {
@@ -203,12 +261,7 @@ public class Server {
 		    					out.flush();
 		    				}
 		    			}
-//		    			else if(request.startsWith("Get Next Chunk Name")){
-//		    				System.out.println("Request Message is: "+request);
-//		    				out.writeUTF("serverFile.txt");
-//		    				//out.writeInt(chunks.size());
-//		    			}
-						else if(request.startsWith("Get details of chunk")){
+		    			else if(request.startsWith("Get details of chunk")){
 		    				System.out.println("Request Message is: "+request);
 		    				String filename = request.split("#")[1].trim();
 		    				File f = new File(serverDir, filename);
